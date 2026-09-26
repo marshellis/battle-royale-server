@@ -56,6 +56,7 @@ describe("party -> match end-to-end handoff", () => {
     const alicePlayer = aliceState.players.get(aliceReservation.sessionId);
     const bobPlayer = aliceState.players.get(bobReservation.sessionId);
     expect(alicePlayer.teamId).toBe(bobPlayer.teamId);
+    expect(alicePlayer.teamId).toBeGreaterThanOrEqual(0);
 
     await aliceMatch.leave();
     await bobMatch.leave();
