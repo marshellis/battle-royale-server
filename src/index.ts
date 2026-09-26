@@ -3,6 +3,7 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 import { createServer } from "http";
 import express from "express";
 import { PartyRoom } from "./rooms/PartyRoom";
+import { MatchRoom } from "./rooms/MatchRoom";
 
 const port = Number(process.env.PORT ?? 2567);
 const app = express();
@@ -14,5 +15,6 @@ const gameServer = new Server({
   transport: new WebSocketTransport({ server: httpServer }),
 });
 gameServer.define("party", PartyRoom);
+gameServer.define("match", MatchRoom);
 
 httpServer.listen(port, () => console.log(`Server running on port ${port}`));
