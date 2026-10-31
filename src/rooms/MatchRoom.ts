@@ -114,7 +114,9 @@ export class MatchRoom extends Room<MatchState> {
     return bot;
   }
 
-  onJoin(client: Client, options: { displayName?: string } = {}) {
+  onJoin(client: Client, options: { displayName?: string; expiresAt?: number } = {}) {
+    // The parent's play-time limit (carried from the party lobby) removes the player when it runs out.
+    if (options.expiresAt) this.clock.setTimeout(() => client.leave(4003), Math.max(0, options.expiresAt * 1000 - Date.now()));
     let p = this.state.players.get(client.sessionId);
     if (!p) {
       p = new PlayerState();

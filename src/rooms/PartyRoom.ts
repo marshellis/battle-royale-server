@@ -3,8 +3,12 @@ import { PartyState, PartyMemberState } from "../schemas/PartyState";
 import { generateRoomCode } from "../game/roomCode";
 import { MODE_CONFIG } from "../game/constants";
 import { formTeams } from "../game/teamFormation";
+import { identify, Identity } from "../auth/pass";
 
 export class PartyRoom extends Room<PartyState> {
+  // When each member's Marshellis pass (the parent's play-time limit) runs out, by sessionId.
+  private expiry = new Map<string, number>();
+
   onCreate() {
     this.setState(new PartyState());
     this.state.code = generateRoomCode();
@@ -35,6 +39,7 @@ export class PartyRoom extends Room<PartyState> {
       for (const teamMemberClient of this.clients) {
         const reservation = await matchMaker.reserveSeatFor(roomListing, {
           displayName: this.state.members.get(teamMemberClient.sessionId)?.displayName ?? "Anonymous",
+          expiresAt: this.expiry.get(teamMemberClient.sessionId),
         });
         teamMemberClient.send("match-ready", reservation);
       }
@@ -44,10 +49,21 @@ export class PartyRoom extends Room<PartyState> {
     });
   }
 
-  onJoin(client: Client, options: { displayName?: string } = {}) {
+  // With GAME_PASS_SECRET set, the signed pass decides the name (see auth/pass.ts); otherwise unchanged.
+  onAuth(_client: Client, options: { displayName?: string; pass?: string } = {}): Identity {
+    const id = identify(options);
+    if (!id) throw new Error("sign-in-required");
+    return id;
+  }
+
+  onJoin(client: Client, options: { displayName?: string } = {}, auth?: Identity) {
     const member = new PartyMemberState();
     member.sessionId = client.sessionId;
-    member.displayName = options.displayName ?? "Anonymous";
+    member.displayName = auth?.displayName ?? options.displayName ?? "Anonymous";
+    if (auth?.expiresAt) {
+      this.expiry.set(client.sessionId, auth.expiresAt);
+      this.clock.setTimeout(() => client.leave(4003), Math.max(0, auth.expiresAt * 1000 - Date.now()));
+    }
     this.state.members.set(client.sessionId, member);
 
     if (this.state.leaderId === "") {
